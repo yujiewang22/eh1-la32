@@ -1,0 +1,201 @@
+// wyj
+// Run time disassembler functions
+// supports  Loongarch32 instructions
+
+`ifndef RV_NUM_THREADS
+`define RV_NUM_THREADS 1
+`endif
+
+bit[31:0] [31:0] gpr[`RV_NUM_THREADS];
+
+// main DASM function
+function string dasm(input[31:0] opcode, input[31:0] pc, input[4:0] regn, input[31:0] regv, input tid=0);
+    dasm = dasm32(opcode, pc, tid);
+    if(regn) gpr[tid][regn] = regv;
+endfunction
+
+///////////////// 32 bit instructions ///////////////////////
+
+function string dasm32(input[31:0] opcode, input[31:0] pc, input tid=0);
+    case(opcode[31:26])
+        6'b000101: return {"LU12I.W    ", dasm32_u(opcode)};
+        6'b000111: return {"PCADDU12I  ", dasm32_u(opcode)};
+        6'b010100: return {"B          ", dasm32_b(opcode,pc)};
+        6'b010101: return {"BL         ", dasm32_bl(opcode,pc)};
+        6'b010011: return {"JIRL       ", dasm32_jirl(opcode,pc)};
+        6'b010110: return {"BEQ        ", dasm32_condbr(opcode,pc)};
+        6'b010111: return {"BNE        ", dasm32_condbr(opcode,pc)}; 
+        6'b011000: return {"BLT        ", dasm32_condbr(opcode,pc)};
+        6'b011001: return {"BGE        ", dasm32_condbr(opcode,pc)};
+        6'b011010: return {"BLTU       ", dasm32_condbr(opcode,pc)};
+        6'b011011: return {"BGEU       ", dasm32_condbr(opcode,pc)};
+        6'b001010: return dasm32_mem(opcode,tid);
+        6'b000000: begin
+            if(opcode[25:22]==0) begin
+                if(opcode[21:20]==0) begin
+                    case(opcode[19:5])
+						15'b000001100000000: return $sformatf("%s%s", "RDCNTVL.W  ", abi_reg[opcode[4:0]]);
+						15'b000001100100000: return $sformatf("%s%s", "RDCNTVH.W  ", abi_reg[opcode[4:0]]);
+                        default : return $sformatf(".long   0x%h", opcode);
+            		endcase
+            	end else if(opcode[21:20]==1) begin
+            		return dasm32_arithreg_mul(opcode);
+            	end else if(opcode[21:20]==2) begin  
+            		case(opcode[19:15])
+           				5'b10110: return "SYSCALL  ";
+						5'b10100: return "BREAK    ";
+						5'b00000: return $sformatf("%s%s,%s,%s", "DIV.W      ", abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], abi_reg[opcode[14:10]]);
+						5'b00010: return $sformatf("%s%s,%s,%s", "DIV.WU     ", abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], abi_reg[opcode[14:10]]);
+						5'b00001: return $sformatf("%s%s,%s,%s", "MOD.W      ", abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], abi_reg[opcode[14:10]]);
+						5'b00011: return $sformatf("%s%s,%s,%s", "MOD.WU     ", abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], abi_reg[opcode[14:10]]);
+                        default : return $sformatf(".long   0x%h", opcode);
+            		endcase
+                end
+            end else begin
+                return dasm32_arithimm(opcode);
+            end
+        end
+        6'b001110: begin
+            case(opcode[25:15])
+                11'b00011100101: return "DBAR       ";
+                11'b00011100100: return "IBAR       ";
+            endcase
+        end
+        6'b000001: begin
+            if(opcode[25:24]==2'b00) begin
+                return dasm32_csr(opcode);
+            end else if(opcode[25:0]==26'b10010010000011100000000000) begin
+                return "ERTN       ";
+            end else if(opcode[25:15]==11'b10010010001) begin
+                return "IDLE       ";
+            end
+        end
+        default : return $sformatf(".long   0x%h", opcode);
+    endcase
+endfunction
+
+function string dasm32_u(input[31:0] opcode);
+    int imm;
+    imm=0;
+    imm[31:12] = opcode[24:5];
+    return $sformatf("%s,0x%0h", abi_reg[opcode[4:0]], imm);
+endfunction
+
+function string dasm32_b(input[31:0] opcode, input[31:0] pc);
+    int imm;
+    imm=0;
+    {imm[17:2], imm[27:18]} = opcode[25:0];
+    if(opcode[25]) imm[31:28] = '1;
+    return $sformatf("0x%0h", imm+pc);
+endfunction
+
+function string dasm32_bl(input[31:0] opcode, input[31:0] pc);
+    int imm;
+    imm=0;
+    {imm[17:2], imm[27:18]} = opcode[25:0];
+    if(opcode[25]) imm[31:28] = '1;
+    return $sformatf("%s,0x%0h", abi_reg[1], imm+pc);
+endfunction
+
+function string dasm32_jirl(input[31:0] opcode, input[31:0] pc);
+    int imm;
+    imm=0;
+    imm[17:2] = opcode[25:10];
+    if(opcode[25]) imm[31:18] = '1;
+    return $sformatf("%s,%s,0x%0h", abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], imm+pc);
+endfunction
+
+function string dasm32_condbr(input[31:0] opcode, input[31:0] pc);
+    int imm;
+    imm=0;
+    imm[17:2] = opcode[25:10];
+    if(opcode[25]) imm[31:18] = '1;
+    return $sformatf("%s,%s,0x%0h", abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], imm+pc);
+endfunction
+
+function string dasm32_mem(input[31:0] opcode, input tid=0);
+    int imm;
+    string mn;
+    imm=0;
+    imm[11:0] = opcode[21:10];
+    if(opcode[21]) imm[31:12] = '1;
+		case(opcode[25:22])
+			0: mn = "LD.B       ";
+			1: mn = "LD.H       ";
+			2: mn = "LD.W       ";
+			8: mn = "LD.BU      ";
+			9: mn = "LD.HU      ";
+			4: mn = "ST.B       ";
+			5: mn = "ST.H       ";
+			6: mn = "ST.W       ";
+            default : return $sformatf(".long   0x%h", opcode);
+		endcase
+    return $sformatf("%s%s,%0d(%s) [%h]", mn, abi_reg[opcode[4:0]], imm, abi_reg[opcode[9:5]], imm+gpr[tid][opcode[9:5]]);
+endfunction
+
+function string dasm32_arithreg_mul(input[31:0] opcode);
+    string mn;
+    case(opcode[19:15])
+	    5'b00000: mn ="ADD.W      ";
+	    5'b00010: mn ="SUB.W      ";
+	    5'b01110: mn ="SLL.W      ";
+	    5'b00100: mn ="SLT        ";
+	    5'b00101: mn ="SLTU       ";
+	    5'b01011: mn ="XOR        ";
+	    5'b01111: mn ="SRL.W      ";
+	    5'b10000: mn ="SRA.W      ";
+	    5'b01010: mn ="OR         ";
+	    5'b01001: mn ="AND        ";
+	    5'b11000: mn ="MUL.W      ";
+	    5'b11001: mn ="MULH.W     ";
+	    5'b11010: mn ="MULH.WU    ";
+        default : return $sformatf(".long   0x%h", opcode);
+    endcase
+    return $sformatf("%s%s,%s,%s", mn, abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], abi_reg[opcode[14:10]]);
+endfunction
+
+function string dasm32_arithimm(input[31:0] opcode);
+    int imm;
+    string mn;
+    imm=0;
+    imm[11:0] = opcode[21:10];
+    case(opcode[25:22])
+        4'b1010: begin
+            mn ="ADDI.W     ";
+            if(opcode[21]) imm[31:12] = '1;
+        end
+        4'b1000: begin
+            mn ="SLTI.W     ";
+            if(opcode[21]) imm[31:12] = '1;
+        end
+        4'b1001: begin
+            mn ="SLTUI.W    ";
+            if(opcode[21]) imm[31:12] = '1;
+        end
+        4'b1111: mn ="XORI       ";
+        4'b1110: mn ="ORI        ";
+        4'b1101: mn ="ANDI       ";   
+        4'b0001: begin
+            case(opcode[21:15])
+                7'b0000001: mn ="SLLI.W     ";
+                7'b0001001: mn ="SRLI.W     ";
+                7'b0010001: mn ="SRAI.W     ";       
+            endcase
+        end    
+        default : return $sformatf(".long   0x%h", opcode);
+    endcase
+    return $sformatf("%s%s,%s,%0d", mn, abi_reg[opcode[4:0]], abi_reg[opcode[9:5]], imm);
+endfunction
+
+function string dasm32_csr(input[31:0] opcode);
+    bit[13:0] csr;
+    csr = opcode[23:10];
+    if(opcode[9:5]==5'b00001) begin
+        return $sformatf("%s%s,csr_%0h", "CSRWR      ", abi_reg[opcode[4:0]], csr);
+    end else if(opcode[9:5]==5'b00000) begin
+        return $sformatf("%s%s,csr_%0h", "CSRRD      ", abi_reg[opcode[4:0]], csr);
+    end else begin
+        return $sformatf("%s%s,csr_%0h,%s", "CSRXCHG    ", abi_reg[opcode[4:0]], csr, abi_reg[opcode[9:5]]);
+    end
+endfunction
+

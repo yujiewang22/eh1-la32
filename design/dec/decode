@@ -1,0 +1,277 @@
+
+.definition
+
+lui      = [0001010.........................]
+auipc    = [0001110.........................]	
+
+# wyj
+j        = [010100..........................]
+jal      = [010101..........................]
+jalr     = [010011..........................]
+
+beq      = [010110..........................]
+bne      = [010111..........................]
+blt      = [011000..........................]
+bge      = [011001..........................]
+bltu     = [011010..........................]
+bgeu     = [011011..........................]
+
+lb       = [0010100000......................]
+lh       = [0010100001......................]
+lw       = [0010100010......................]
+lbu      = [0010101000......................]
+lhu      = [0010101001......................]
+
+sb       = [0010100100......................]
+sh       = [0010100101......................]
+sw       = [0010100110......................]
+
+addi     = [0000001010......................]
+slti     = [0000001000......................]
+sltiu    = [0000001001......................]
+xori     = [0000001111......................]
+ori      = [0000001110......................]
+andi     = [0000001101......................]
+slli     = [00000000010000001...............]
+srli     = [00000000010001001...............]
+srai     = [00000000010010001...............]
+
+add      = [00000000000100000...............]
+sub      = [00000000000100010...............]
+sll      = [00000000000101110...............]
+slt      = [00000000000100100...............]
+sltu     = [00000000000100101...............]
+xor      = [00000000000101011...............]
+srl      = [00000000000101111...............]
+sra      = [00000000000110000...............]
+or       = [00000000000101010...............]
+and      = [00000000000101001...............]
+
+mul      = [00000000000111000...............]
+mulh     = [00000000000111001...............]
+mulhu    = [00000000000111010...............]
+
+div      = [00000000001000000...............]
+divu     = [00000000001000010...............]
+rem      = [00000000001000001...............]
+remu     = [00000000001000011...............]
+
+fence    = [00111000011100101...............]
+fence.i  = [00111000011100100...............]
+
+ecall    = [00000000001010110...............]
+ebreak   = [00000000001010100...............]
+mret     = [00000110010010000011100000000000]
+wfi      = [00000110010010001...............]
+
+csrrw    = [00000100..............00001.....]
+csrro    = [00000100..............00000.....]
+# wyj
+csrxchg0 = [00000100..............1.........]
+csrxchg1 = [00000100...............1........]
+csrxchg2 = [00000100................1.......]
+csrxchg3 = [00000100.................1......]
+
+# wyj
+rdcntvlw = [000000000000000001100000000.....]
+rdcntvhw = [000000000000000001100100000.....] 
+
+.input
+
+loongarch32r = {
+        i[31]
+        i[30]
+        i[29]
+        i[28]
+        i[27]
+        i[26]
+        i[25]
+        i[24]
+        i[23]
+        i[22]
+        i[21]
+        i[20]
+        i[19]
+        i[18]
+        i[17]
+        i[16]
+        i[15]
+        i[14]
+        i[13]
+        i[12]
+        i[11]
+        i[10]
+        i[9]
+        i[8]
+        i[7]
+        i[6]
+        i[5]
+        i[4]
+        i[3]
+        i[2]
+        i[1]
+        i[0]
+}
+
+.output
+
+loongarch32r = {
+      alu
+      rs1
+      rs2
+      imm12
+      # wyj
+      uimm12
+      rd
+      # wyj
+      r0
+      # wyj
+      r1
+      shimm5
+      imm20
+      # wyj
+      imm26
+      # wyj
+      imm16
+      pc
+      load
+      store
+      lsu
+      add
+      sub
+      land
+      lor
+      lxor
+      sll
+      sra
+      srl
+      slt
+      unsign
+      condbr
+      beq
+      bne
+      bge
+      blt
+      jal
+      by
+      half
+      word
+      csr_read
+      csr_clr
+      csr_set
+      csr_write
+      # wyj
+      csr_xchg
+      csr_imm
+      # wyj
+      rdcntv
+      presync
+      postsync
+      ebreak
+      ecall
+      mret
+      # wyj
+      wfi
+      mul
+      rs1_sign
+      rs2_sign
+      low
+      div
+      rem
+      fence
+      fence_i
+      pm_alu
+}
+
+.decode
+
+loongarch32r[lui]     = { alu imm20    rd lor pm_alu }
+loongarch32r[auipc]   = { alu imm20 pc rd add pm_alu }
+
+# wyj
+loongarch32r[j]       = { alu imm26 rd r0 pc jal }
+
+# wyj
+# rv32i[jal]          = { alu imm20 rd    pc jal }
+loongarch32r[jal]     = { alu imm26 rd r1 pc jal }
+
+# wyj
+# rv32i[jalr]         = { alu rs1 imm12 rd jal }
+loongarch32r[jalr]    = { alu rs1 imm16 rd jal } 
+
+loongarch32r[beq]     = { alu rs1 rs2 sub condbr beq }
+loongarch32r[bne]     = { alu rs1 rs2 sub condbr bne }
+loongarch32r[blt]     = { alu rs1 rs2 sub condbr blt }
+loongarch32r[bge]     = { alu rs1 rs2 sub condbr bge }
+loongarch32r[bltu]    = { alu rs1 rs2 sub condbr blt unsign }
+loongarch32r[bgeu]    = { alu rs1 rs2 sub condbr bge unsign }
+
+# wyj
+loongarch32r[lb]      = { lsu load rs1 rd by }
+loongarch32r[lh]      = { lsu load rs1 rd half }
+loongarch32r[lw]      = { lsu load rs1 rd word }
+loongarch32r[lbu]     = { lsu load rs1 rd by unsign }
+loongarch32r[lhu]     = { lsu load rs1 rd half unsign }
+
+loongarch32r[sb]      = { lsu store rs1 rs2 by }
+loongarch32r[sh]      = { lsu store rs1 rs2 half }
+loongarch32r[sw]      = { lsu store rs1 rs2 word }
+
+loongarch32r[addi]    = { alu rs1 imm12 rd add pm_alu }
+loongarch32r[slti]    = { alu rs1 imm12 rd sub slt pm_alu }
+loongarch32r[sltiu]   = { alu rs1 imm12 rd sub slt unsign pm_alu }
+# wyj
+# rv32i[xori]         = { alu rs1 imm12 rd lxor pm_alu }
+# rv32i[ori]          = { alu rs1 imm12 rd lor pm_alu }
+# rv32i[andi]         = { alu rs1 imm12 rd land pm_alu }
+loongarch32r[xori]    = { alu rs1 uimm12 rd lxor pm_alu }
+loongarch32r[ori]     = { alu rs1 uimm12 rd lor pm_alu }
+loongarch32r[andi]    = { alu rs1 uimm12 rd land pm_alu }
+loongarch32r[slli]    = { alu rs1 shimm5 rd sll pm_alu }
+loongarch32r[srli]    = { alu rs1 shimm5 rd srl pm_alu }
+loongarch32r[srai]    = { alu rs1 shimm5 rd sra pm_alu }
+
+loongarch32r[add]     = { alu rs1 rs2 rd add pm_alu }
+loongarch32r[sub]     = { alu rs1 rs2 rd sub pm_alu }
+loongarch32r[sll]     = { alu rs1 rs2 rd sll pm_alu }
+loongarch32r[slt]     = { alu rs1 rs2 rd sub slt pm_alu }
+loongarch32r[sltu]    = { alu rs1 rs2 rd sub slt unsign pm_alu }
+loongarch32r[xor]     = { alu rs1 rs2 rd lxor pm_alu }
+loongarch32r[srl]     = { alu rs1 rs2 rd srl pm_alu }
+loongarch32r[sra]     = { alu rs1 rs2 rd sra pm_alu }
+loongarch32r[or]      = { alu rs1 rs2 rd lor pm_alu }
+loongarch32r[and]     = { alu rs1 rs2 rd land pm_alu }
+
+loongarch32r[mul]     = { mul rs1 rs2 rd low }
+loongarch32r[mulh]    = { mul rs1 rs2 rd rs1_sign rs2_sign }
+loongarch32r[mulhu]   = { mul rs1 rs2 rd }
+
+loongarch32r[div]     = { div rs1 rs2 rd presync postsync }
+loongarch32r[divu]    = { div rs1 rs2 rd unsign presync postsync }
+loongarch32r[rem]     = { div rs1 rs2 rd presync postsync rem }
+loongarch32r[remu]    = { div rs1 rs2 rd unsign presync postsync rem }
+
+loongarch32r[fence]   = { alu lor fence presync}
+# fence.i has fence effect in addtion to flush I$ and redirect
+loongarch32r[fence.i] = { alu lor fence fence_i presync postsync}
+
+# nops for now
+loongarch32r[ecall]   = { alu rs1 imm12 rd lor ecall postsync }
+loongarch32r[ebreak]  = { alu rs1 imm12 rd lor ebreak postsync }
+loongarch32r[mret]    = { alu rs1 imm12 rd lor mret postsync }
+# wyj
+# rv32i[wfi]          = { alu rs1 imm12 rd lor pm_alu }
+loongarch32r[wfi]     = { alu rs1 imm12 rd lor wfi }
+
+# csr
+
+# wyj 
+loongarch32r[csrrw]   = { alu rd csr_read rs1 csr_write lor presync postsync }
+loongarch32r[csrro]   = { alu rd csr_read lor }
+loongarch32r[csrxchg{0-3}] = { alu rd csr_read rs1 rs2 csr_xchg lor presync postsync }
+
+# wyj
+loongarch32r[rdcntvlw] = { alu rd lor rdcntv low }
+loongarch32r[rdcntvhw] = { alu rd lor rdcntv }
+
+.end
