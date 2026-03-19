@@ -320,7 +320,9 @@ module tb_top;
     assign WriteData = lmem.WriteData;
     assign mailbox_data_val = WriteData[7:0] > 8'h5 && WriteData[7:0] < 8'h7f;
 
-    parameter MAX_CYCLES = 10_000_000;
+    // wyj
+    // parameter MAX_CYCLES = 10_000_000;
+    parameter MAX_CYCLES = 1_000_000_000;
 
     integer fd, tp, el;
 
