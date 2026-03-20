@@ -408,9 +408,13 @@ for (i = 0; i < MULTITHREAD; i++)
     if (results[0].execs & ID_STATE)
         for (i = 0; i < default_num_contexts; i++)
             ee_printf("[%d]crcstate      : 0x%04x\n", i, results[i].crcstate);
+    // wyj
+    /*
     for (i = 0; i < default_num_contexts; i++)
         ee_printf("[%d]crcfinal      : 0x%04x\n", i, results[i].crc);
-    if (total_errors == 0)
+    */
+    ee_printf("Does not print crcfinal here for test.\n");
+        if (total_errors == 0)
     {
         ee_printf(
             "Correct operation validated. See README.md for run and reporting "
